@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<widget>
+<debug>off</debug>
+<!--
+ My Pi - the Pi searcher widget. find your own private world within the digits of pi.
+ Uses the Pi-Searcher web page to submit searches and scrapes the results back to show
+ them in the widget.
+-->
+
+	
+	<window title="My Pi">
+		<name>mainWindow</name>
+		<width>200</width>
+		<height>350</height>
+		<visible>1</visible>
+		<shadow>0</shadow>
+		<image name="logo" opacity="255" src="Resources/logo.png" />
+		<image name="viewModeIcon" opacity="150" hOffset="60" vOffset="30" src="Resources/viewIcon.png" visible="false" tooltip="View Mode - see substrings of digits of PI"/>
+		<image name="srchModeIcon" opacity="150" hOffset="120" vOffset="5" src="Resources/searchIcon.png" visible="false" tooltip="Search Mode - search for strings in digits of PI" />
+		<image name="srchBorder" vOffset="84" src="Resources/searchBorder.png"/>
+		<script>
+	    <![CDATA[
+		function setModeIcon() {
+			if(preferences.widgetMode.value == "View") {
+				viewModeIcon.visible = true;
+				srchModeIcon.visible = false;
+				searchResult.data = "Enter a number (greater than or equal to 1) to see the digits of Pi after that position";
+			} else {
+				srchModeIcon.visible = true;
+				viewModeIcon.visible = false;
+				searchResult.data = "Enter a sequence of numbers and find it in Pi";
+			}
+		}
+
+	    	var url = new URL();
+		var lastMatchPosition = -1;
+
+		function findDigitsInPI(nStr,freshMatch) {
+			url.postData = "UsrQuery=" + nStr;
+			if( (!freshMatch) && (lastMatchPosition > 1) ) {
+				url.postData = url.postData + "&startpos=" + lastMatchPosition;
+			} else {
+				if(lastMatchPosition == -1) {
+					freshMatch = true;
+				}
+			}
+			res = url.fetch("http://www.angio.net/pi/bigpi.cgi");
+			scrapeResults(res,freshMatch);
+		}
+
+		function scrapeResults(respStr,freshMatch) {
+			// print(respStr);
+			noMatchPat = /The string (\d+) did not occur in the first (\d+) digits of pi after position 0\./;
+			anyMatchFound = respStr.match(noMatchPat);
+			if (anyMatchFound != null) {
+				searchResult.color = "orange";
+				searchResult.data = "No matches for " + RegExp.$1 + " in the first " + RegExp.$2 + " digits of pi ! Better luck next time :-)";
+			} else {
+				resultPat = /The string <b>(\d+)<\/b> occurs at position ([,\d]+) counting from the first digit after the decimal point/;
+				anyMatchFound = respStr.match(resultPat);
+				if(anyMatchFound != null) {
+					searchResult.color = "#72b61c";
+					srchStr = RegExp.$1;
+					matchPos = RegExp.$2;
+					lastMatchPosition = matchPos.replace(/[,]+/g,"");
+					if(lastMatchPosition == "200000001") {
+						lastMatchPosition = -1;
+						searchResult.data = "This is the end, my friend. No more matches for " + srchStr + " within the first 200 million digits !";
+					} else {
+						if(freshMatch) {
+							searchResult.data = "First occurence of " + srchStr + " is at position " + matchPos;
+						} else {
+							searchResult.data = "Next occurence of " + srchStr + " is at position " + matchPos;
+						}
+					}
+				}
+			}
+		}
+
+		function viewDigitsInPI(nStr) {
+			url.postData = "querytype=substr&startpos=" + nStr + "&UsrQuery=" + preferences.numDigits.value;
+			res = url.fetch("http://www.angio.net/pi/bigpi.cgi");
+			gleanResults(res);
+		}
+
+		function gleanResults(res) {
+			sucPat = /<div id=\"showstring\"><p>\s*(\d+)<\/p>/;
+			anyMatchFound = res.match(sucPat);
+			if(anyMatchFound != null) {
+				searchResult.color = "#72b61c";
+				searchResult.data = preferences.numDigits.value + " digits starting at position " + searchText.data + " are : " + RegExp.$1;
+			} else {
+				searchResult.color = "orange";
+				searchResult.data = "Bad query.Make sure the position you enter is greater than or equal to 1";
+			}
+		}
+
+	    ]]>
+		</script>
+		<textarea data="314159">
+			<name>searchText</name>
+			<hOffset>10</hOffset>
+			<vOffset>84</vOffset>
+			<width>180</width>
+			<bgColor>#ffffff</bgColor>
+			<bgOpacity>0</bgOpacity>
+			<alignment>left</alignment>
+			<font>Arial Bold</font>
+			<size>32</size>
+			<color>#bababa</color>
+			<lines>1</lines>
+			<scrollbar>false</scrollbar>
+			<onKeyPress>
+	    		<![CDATA[
+				if ( system.event.key.charCodeAt(0) == 9 )
+				{
+					searchText.rejectKeyPress();
+					
+				}
+			
+				if (system.event.keyString == "Return" || system.event.keyString == "Enter")
+				{
+					searchText.rejectKeyPress();
+					animator.runUntilDone(fadeOut);
+					if( (searchText.data.replace( /[^\w]/g, "" ) != "" ) && (searchText.data.replace( /\d+/g, "" ) == "" )) {
+						if(preferences.widgetMode.value == "View") {
+							viewDigitsInPI(searchText.data);
+						} else {
+							lastMatchPosition = -1;
+							findDigitsInPI(searchText.data,true);
+						}
+					}
+					else
+						searchText.data = "";
+
+					searchText.loseFocus();
+					animator.runUntilDone(fadeIn);
+				}
+	    		  ]]>
+			</onKeyPress>
+			<onGainFocus>
+				if( searchText.data == "314159" )
+				{
+					searchText.data = "";
+					searchText.color = "#000000";
+				}
+				//searchText.opacity = 255;
+			</onGainFocus>
+			<onLoseFocus>
+				if( searchText.data == "" )
+				{
+					searchText.data = "314159";
+					searchText.color = "#bababa";
+				}
+				//searchText.opacity = 0;
+			</onLoseFocus>
+		</textarea>
+		<frame name="resultsPane" vOffset="180" width="180" height="150">
+			<image name="paneBg" src="Resources/resultsPaneBg.png" width="180" height="150"/>
+			<text name="searchResult" width="160" height="100" hOffset="5" vOffset="30" font="Arial Bold" size="14" wrap="true" />
+		</frame>
+	</window>
+
+	<hotkey name="hkey1" key="N" modifier="control+shift">
+		<onKeyDown>
+			<![CDATA[
+				if(preferences.widgetMode.value == "Search") {
+					findDigitsInPI(searchText.data,false);
+				}
+			]]>
+		</onKeyDown>
+	</hotkey>
+	<action trigger="onPreferencesChanged">
+		<![CDATA[
+			setModeIcon();
+		]]>
+	</action>
+
+	<action trigger="onLoad">
+		var fadeOut = new FadeAnimation(resultsPane,0,350,animator.kEaseOut);
+		var fadeIn = new FadeAnimation(resultsPane,255,350,animator.kEaseIn);
+		setModeIcon();
+	</action>
+
+	<preference name="widgetMode">
+		<description> The mode of function for the widget. Two modes are available. View mode in which substrings of digits of PI can be see by specifying a start index. In the Search mode specified strings will be searched in the digits of PI. </description>
+		<type>popup</type>
+		<defaultValue>Search</defaultValue>
+		<option>View substrings in PI</option>
+		<optionValue>View</optionValue>
+		<option>Search for strings in PI</option>
+		<optionValue>Search</optionValue>
+	</preference>
+	<preference name="numDigits">
+		<description> Number of digits to show. Applicable only if mode is View. </description>
+		<defaultValue>10</defaultValue>
+		<type>popup</type>
+		<option>10</option>
+		<option>25</option>
+		<option>50</option>
+	</preference>
+	<about-box>
+		<image>Resources/about.png</image>
+		<about-version>
+			<font>Arial</font>
+			<size>12</size>
+			<hOffset>30</hOffset>
+			<vOffset>230</vOffset>
+			<color>#00ff00</color>
+		</about-version>
+		
+		<about-text>
+			<data>The Pi-Search Page</data>
+			<url>http://www.angio.net/pi/piquery</url>
+			<font>Arial</font>
+			<size>10</size>
+			<hOffset>30</hOffset>
+			<vOffset>250</vOffset>
+			<color>#00ff00</color>
+		</about-text>
+	</about-box>
+		
+</widget>

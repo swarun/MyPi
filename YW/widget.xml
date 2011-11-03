@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<metadata>
+	<name>My Pi</name>
+	<version>6.282</version>
+	<identifier>0c8ce5f0-0aad-11dc-8314-0800200c9a66</identifier>
+	<image usage="security" src="Resources/sec.png"/>
+	<image usage="dock" src="Resources/dock.png"/>
+	<author name="Meera G B" />
+	<copyright>(c) 2007-2008</copyright>
+	<description>Searches digits of Pi for your favourite numerical strings. Also shows upto 50 digits starting at a given position.</description>
+	<platform minVersion="4.0"/>
+</metadata>
